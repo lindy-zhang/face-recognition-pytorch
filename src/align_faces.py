@@ -48,10 +48,61 @@ def build_detector() -> MTCNN:
 
 def unnormalize(face_tensor: torch.Tensor) -> torch.Tensor:
     """
-    Docstring for unnormalize
-    
-    :param face_tensor: Description
-    :type face_tensor: torch.Tensor
-    :return: Description
-    :rtype: Tensor
+    Bc MTCNN's output tensor is normalized to roughly [-1, 1] for the embedding
+    model -> to save it as a viewable image file,  need to map it back to
+    [0, 1], which is what image codecs (save_image / PIL) expect.
     """
+    return (face_tensor + 1) / 2
+
+def process_dataset(input_dir: Path, output_dir: Path) -> None:
+    mtcnn = build_detector()
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    total_images = 0
+    succeeded = 0
+    failed = [] # list of (path, reason) tuples
+
+    person_dirs = sorted(p for p in input_dir.iterdir() if p.is_dir())
+    for person_dir in person_dirs:
+        person_name = person_dir.name
+        out_person_dir = output_dir / person_name
+        out_person_dir.mkdir(parents=True, exist_ok=True)
+
+        image_paths = sorted(person_dir.glob("*.jpg"))
+        
+        for img_path in image_paths:
+            total_images += 1
+            try:
+                # Enforce 3-channel RGB
+                img = Image.open(img_path).convert("RGB")
+            except Exception as e:
+                failed.append((img_path, f"could not open image: {e}"))
+                continue
+
+            face_tensor = mtcnn(img)
+
+            if face_tensor is None:
+                failed.append((img_path, "no face detected"))
+            
+            out_path = out_person_dir / img_path.name
+            save_image(unnormalize(face_tensor), str(out_path))
+            succeeded += 1
+        
+        print(f"[{person_name}] {len(image_paths)}")
+    
+    # --- Summary ---------------------------------------------------
+    print("\n=== Alignment Summary ===")
+    print(f"Total images:  {total_images}")
+    print(f"Succeeded:     {succeeded}")
+    print(f"Failed:        {len(failed)}")
+
+    if failed:
+        print("\nFailures:")
+        for path, reason in failed[:20]:  # cap console spam
+            print(f"  {path}: {reason}")
+        if len(failed) > 20:
+            print(f"  ... and {len(failed) - 20} more")
+
+if __name__ == "__main__":
+    process_dataset(INPUT_DIR, OUTPUT_DIR)
