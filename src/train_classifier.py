@@ -67,7 +67,12 @@ def main():
     # label back into a person's name.
     CLASSIFIER_PATH.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(
-        {"classifier": classifier, "class_names": class_names},
+        {
+        "classifier": classifier,
+        "class_names": class_names,
+        "train_embeddings": X_train,
+        "train_labels": y_train,
+        },
         CLASSIFIER_PATH,
     )
     print(f"\nSaved classifier to: {CLASSIFIER_PATH}")

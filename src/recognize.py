@@ -77,8 +77,17 @@ def recognize(image_path: Path) -> None:
 
     print(f"\nTop prediction: {top_name} ({top_confidence:.2%} confidence)")
 
-    if top_confidence < CONFIDENCE_THRESHOLD:
-        print(f"Confidence below threshold ({CONFIDENCE_THRESHOLD:.0%}) -> Unknown")
+    saved = joblib.load(CLASSIFIER_PATH)
+    train_embeddings = saved["train_embeddings"]
+
+    # ... after computing `embedding` ...
+    distances = np.linalg.norm(train_embeddings - embedding, axis=1)
+    nearest_distance = distances.min()
+
+    DISTANCE_THRESHOLD = 0.9  # from our diagnostic: same-identity ~0.67, diff ~1.3
+
+    if nearest_distance > DISTANCE_THRESHOLD or top_confidence < CONFIDENCE_THRESHOLD:
+        print(f"Result: Unknown (nearest distance {nearest_distance:.3f})")
     else:
         print(f"Result: {top_name}")
 
