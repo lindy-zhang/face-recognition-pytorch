@@ -52,7 +52,11 @@ def build_dataset(aligned_dir: Path) -> datasets.ImageFolder:
          distribution InceptionResnetV1 was trained on.
     """
 
-    transform = transforms.Compose([transforms.ToTensor(), fixed_image_standardization])
+    transform = transforms.Compose([
+    transforms.ToTensor(),                       # PIL -> [0,1] tensor
+    transforms.Lambda(lambda x: x * 255),         # undo the [0,1] scaling -> back to [0,255]
+    fixed_image_standardization,                  # now correctly maps [0,255] -> model's expected range
+])
     return datasets.ImageFolder(root=str(aligned_dir), transform=transform)
 
 def extract_embeddings(dataset: datasets.ImageFolder) -> tuple[np.ndarray, np.ndarray, list[str]]:
